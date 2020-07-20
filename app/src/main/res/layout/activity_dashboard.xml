@@ -6,13 +6,12 @@
     android:layout_height="match_parent"
     tools:context=".Dashboard"
     android:orientation="vertical">
-
     <RelativeLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:padding="10dp"
-        android:background="@color/colorAccent">
+        android:background="@color/colorPrimaryDark">
         <TextView
             android:id="@+id/dashboardText"
             android:layout_width="match_parent"
@@ -20,7 +19,7 @@
             android:text="Dashboard"
             android:textColor="@android:color/white"
             android:textSize="30dp"
-            android:background="@color/colorAccent"/>
+            android:background="@color/colorPrimaryDark"/>
 
         <Button
             android:layout_width="wrap_content"
@@ -32,30 +31,106 @@
             />
     </RelativeLayout>
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_height="wrap_content"
+    <RelativeLayout
         android:layout_width="match_parent"
-        android:theme="@style/ThemeOverlay.AppCompat.Dark.ActionBar"
-        >
-
-        <com.google.android.material.appbar.CollapsingToolbarLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:layout_scrollFlags="scroll|snap|exitUntilCollapsed"
-            app:contentScrim="@color/colorPrimary"
-            >
+        android:layout_height="200dp">
             <ImageView
                 android:layout_width="match_parent"
-                android:layout_height="300dp"
-                android:src="@drawable/todaybackground"
-                android:scaleType="centerCrop"
-                />
-            <androidx.appcompat.widget.Toolbar
-                android:layout_width="match_parent"
-                android:layout_height="?attr/actionBarSize"
-                android:theme="@style/ThemeOverlay.AppCompat.Dark"/>
+                android:layout_height="match_parent"
+                android:src="@drawable/bg"
+                android:scaleType="centerCrop"/>
+        <TextView
+            android:id="@+id/locationToday"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Location : "
+            android:textColor="@android:color/white"
+            android:textSize="20sp"
+            android:layout_margin="10dp"/>
 
-        </com.google.android.material.appbar.CollapsingToolbarLayout>
+        <TextView
+            android:id="@+id/dateTodayText"
+            android:layout_alignParentEnd="true"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/todayText"
+            android:text="Date"
+            android:textColor="@android:color/white"
+            android:layout_below="@+id/locationToday"
+            android:textSize="25sp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"/>
 
-    </com.google.android.material.appbar.AppBarLayout>
+        <TextView
+        android:id="@+id/todayText"
+        android:layout_alignParentEnd="true"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/mainTodayText"
+        android:text="Today"
+        android:textColor="@android:color/white"
+        android:textSize="28sp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="5dp"
+        android:layout_marginBottom="2dp"/>
+
+        <TextView
+            android:id="@+id/mainTodayText"
+            android:layout_alignParentEnd="true"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/descTodayText"
+            android:text="Main"
+            android:textColor="@android:color/white"
+            android:textSize="22sp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="2dp"/>
+
+        <TextView
+            android:id="@+id/descTodayText"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Description"
+            android:textColor="@android:color/secondary_text_dark_nodisable"
+            android:textSize="18sp"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="10dp"/>
+
+        <TextView
+            android:id="@+id/maxTempToday"
+            android:layout_alignParentBottom="true"
+            android:layout_alignEnd="@id/todayText"
+            android:layout_alignBottom="@id/minTempToday"
+            android:layout_above="@id/minTempToday"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Max Temp:"
+            android:textColor="@android:color/white"
+            android:textSize="22sp"
+            android:layout_marginRight="10dp"
+            android:layout_marginBottom="50dp"/>
+
+        <TextView
+            android:id="@+id/minTempToday"
+            android:layout_alignParentBottom="true"
+            android:layout_alignEnd="@id/todayText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Min Temp: "
+            android:textColor="@android:color/white"
+            android:textSize="22sp"
+            android:layout_margin="10dp"/>
+    </RelativeLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/forcastRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+    </androidx.recyclerview.widget.RecyclerView>
 </LinearLayout>
