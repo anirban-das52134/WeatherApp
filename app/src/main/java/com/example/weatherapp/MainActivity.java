@@ -2,11 +2,16 @@ package com.example.weatherapp;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
+import android.os.Looper;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
@@ -22,6 +27,10 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.JsonObjectRequest;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -47,10 +56,13 @@ import javax.xml.validation.Validator;
 
 public class MainActivity extends AppCompatActivity {
 
-    EditText email,pass;
+    EditText email, pass;
     FirebaseAuth auth;
     ProgressBar progressBar;
     Button submitBtn;
+
+    private static final int REQUEST_CODE_LOCATION_PERMISSION = 1;
+    double latitude,longitude;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,14 +72,81 @@ public class MainActivity extends AppCompatActivity {
         email = findViewById(R.id.email);
         pass = findViewById(R.id.password);
         auth = FirebaseAuth.getInstance();
-        submitBtn  = findViewById(R.id.submit);
+        submitBtn = findViewById(R.id.submit);
         progressBar = findViewById(R.id.progressBarRegister);
 
-        //If user is already logged in skip the validation part
-        if(auth.getCurrentUser()!=null){
-            goToDashboard(auth.getCurrentUser().getEmail());
-            finish();
+        //Get user Location
+        submitBtn.setEnabled(false);
+        if (ContextCompat.checkSelfPermission(getApplicationContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                    MainActivity.this,
+                    new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_CODE_LOCATION_PERMISSION
+            );
         }
+        else {
+            //If user is already logged in skip the validation part
+            //Get the current location of the user everytime the app is opened and if the user is already logged in the redirect to dashboard
+            if (auth.getCurrentUser() != null) {
+                getCurrentLocation(true);
+            }
+            else {
+                getCurrentLocation(false);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_CODE_LOCATION_PERMISSION && grantResults.length > 0) {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                getCurrentLocation(false);
+            } else {
+                Toast.makeText(this, "Permission Needed", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    //Fetch the current latitude and longitude of the user
+    void getCurrentLocation(final boolean loginAuto) {
+        progressBar.setVisibility((View.VISIBLE));
+
+        LocationRequest locationRequest = new LocationRequest();
+        locationRequest.setInterval(10000);
+        locationRequest.setFastestInterval(3000);
+        locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this, "Permission Needed", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        LocationServices.getFusedLocationProviderClient(MainActivity.this)
+                .requestLocationUpdates(locationRequest, new LocationCallback() {
+
+                    @Override
+                    public void onLocationResult(LocationResult locationResult) {
+                        super.onLocationResult(locationResult);
+                        LocationServices.getFusedLocationProviderClient(MainActivity.this)
+                                .removeLocationUpdates(this);
+
+                        if(locationResult != null && locationResult.getLocations().size() > 0){
+                            int latestLocationIndex = locationResult.getLocations().size() - 1;
+
+                            latitude = locationResult.getLocations().get(latestLocationIndex).getLatitude();
+                            longitude = locationResult.getLocations().get(latestLocationIndex).getLongitude();
+
+                            if(loginAuto) {
+                                goToDashboard(auth.getCurrentUser().getEmail());
+                                return;
+                            }
+                        }
+                        progressBar.setVisibility((View.GONE));
+                        submitBtn.setEnabled(true);
+                    }
+                }, Looper.getMainLooper());
     }
 
     public void VallidateUser(View v){
@@ -125,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     Toast.makeText(MainActivity.this,"Error : " + task.getException().getMessage(),Toast.LENGTH_SHORT).show();
                     submitBtn.setEnabled(true);
+                    progressBar.setVisibility(View.GONE);
                 }
             }
         });
@@ -152,6 +232,8 @@ public class MainActivity extends AppCompatActivity {
     private void goToDashboard(String emailStr){
         Intent intent = new Intent(MainActivity.this, Dashboard.class);
         intent.putExtra("email", emailStr);
+        intent.putExtra("lat",latitude);
+        intent.putExtra("lon",longitude);
         startActivity(intent);
         finish();
     }

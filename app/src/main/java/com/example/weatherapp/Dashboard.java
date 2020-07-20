@@ -11,6 +11,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.LinearLayout;
+import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,11 +46,14 @@ import java.util.Objects;
 
 public class Dashboard extends AppCompatActivity {
     //API to fetch the data
-    String URL = "https://api.openweathermap.org/data/2.5/onecall?lat=22.5726&lon=88.3639&units=metric&appid=44a3d2d0c1be6e56b777b391fb36faab";
-
+    final String API_KEY = "44a3d2d0c1be6e56b777b391fb36faab";
+    double lat = 22.5726,lon=88.3639;
+    String timeZone;
+    String URL;
     //List to store the data fetched from API
     List<String> maxTempList, minTempList, dateList,mainList,descList;
     //Database Keys
+    public static  final String KEY_LOCATION = "loc";
     public static  final String KEY_DATE = "date";
     public static  final String KEY_MAX = "max";
     public static  final String KEY_MIN = "min";
@@ -66,18 +71,40 @@ public class Dashboard extends AppCompatActivity {
     RecyclerView forcastRV;
     ForcastAdapter forcastAdapter;
 
+    //Loading Progress
+    RelativeLayout loadLayout;
+    LinearLayout dataLayout;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
 
+        //Assign data and loading layout
+        dataLayout = findViewById(R.id.DataLayout);
+        loadLayout = findViewById(R.id.loadLayout);
+
+
+        //Initially the loading view is visible
+        dataLayout.setVisibility(View.INVISIBLE);
+        loadLayout.setVisibility(View.VISIBLE);
+
+        //Make a dummy URL to fetch API
+        makeURL();
+
         //Email passed from login activity to be used as unique document name for collection WeatherData in firebase
         String email = getIntent().getStringExtra("email");
+        lat = getIntent().getDoubleExtra("lat",0);
+        lon = getIntent().getDoubleExtra("lon",0);
+        Log.i("Content",lat+" "+lon);
         docRef = db.collection("WeatherData").document(email);
+        //Make the API URL using user's latitude and longitude
+        makeURL();
 
         //Initialize the lists and load the data
         initList();
-        loadJSON(URL,true); // True means load data into database else we will simply show the data
+        //loadJSON(URL,true); // True means load data into database else we will simply show the data
+        fetchFromDB();
 
         forcastRV = findViewById(R.id.forcastRecyclerView);
 
@@ -87,6 +114,10 @@ public class Dashboard extends AppCompatActivity {
         descTodayTV = findViewById(R.id.descTodayText);
         maxTodayTV = findViewById(R.id.maxTempToday);
         minTodayTV = findViewById(R.id.minTempToday);
+    }
+
+    void makeURL(){
+        URL = "https://api.openweathermap.org/data/2.5/onecall?lat="+lat+"&lon="+lon+"&units=metric&appid="+API_KEY;
     }
 
     private void initList(){
@@ -118,6 +149,7 @@ public class Dashboard extends AppCompatActivity {
     private void loadData(String response,boolean loadIntoDatabase){
         try {
             JSONObject obj = new JSONObject(response);
+            timeZone = obj.getString("timezone");
             JSONArray dailyData = obj.getJSONArray("daily");
 
             for(int  i = 0;i<dailyData.length();i++){
@@ -157,6 +189,7 @@ public class Dashboard extends AppCompatActivity {
     public void queryDB(){
         Map<String,Object> map = new HashMap<>();
 
+        map.put(KEY_LOCATION,timeZone);
         map.put(KEY_DATE,dateList);
         map.put(KEY_MAX,maxTempList);
         map.put(KEY_MIN,minTempList);
@@ -207,6 +240,10 @@ public class Dashboard extends AppCompatActivity {
                             if(value != null)  {
                                 descList = (List<String>) convertObjectToList(value);
                             }
+                            value = documentSnapshot.get(KEY_LOCATION);
+                            if(value != null)  {
+                                timeZone = value.toString();
+                            }
                             // Data Fetched, Show the data
                             showData();
                         }
@@ -229,6 +266,7 @@ public class Dashboard extends AppCompatActivity {
         Log.i("Content","Showing Data");
 
         //Set Today's data
+        locationTodayTV.setText(timeZone);
         dateToday.setText(dateList.get(0));
         mainTodayTV.setText(mainList.get(0));
         descTodayTV.setText(descList.get(0).toUpperCase());
@@ -245,6 +283,9 @@ public class Dashboard extends AppCompatActivity {
         forcastAdapter = new ForcastAdapter(dateList,maxTempList,minTempList,mainList,descList);
         forcastRV.setLayoutManager(new LinearLayoutManager(this));
         forcastRV.setAdapter(forcastAdapter);
+
+        dataLayout.setVisibility(View.VISIBLE);
+        loadLayout.setVisibility(View.INVISIBLE);
     }
 
     //Logout Method
