@@ -31,11 +31,40 @@
             android:onClick="Logout"
             />
     </RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:orientation="horizontal"
+        android:layout_below="@+id/topBar"
+        android:id="@+id/searchBar">
+
+        <Button
+            android:id="@+id/searchBtn"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/search"
+            android:onClick="searchNewCity"/>
+        <EditText
+            android:id="@+id/cityNameSearch"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:layout_gravity="center"
+            android:layout_marginStart="15dp"
+            android:background="@null"
+            android:hint="Enter city name"
+            android:imeOptions="actionDone"
+            android:importantForAutofill="no"
+            android:includeFontPadding="false"
+            android:inputType="text"
+            android:textSize="20sp" />
+
+    </LinearLayout>
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
-        android:layout_below="@+id/topBar"
+        android:layout_below="@+id/searchBar"
         android:id="@+id/DataLayout">
     <RelativeLayout
         android:layout_width="match_parent"

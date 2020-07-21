@@ -8,9 +8,17 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.annotation.SuppressLint;
 import android.content.Intent;
+import android.location.Address;
+import android.location.Geocoder;
+import android.location.Location;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
@@ -29,11 +37,13 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.QueryDocumentSnapshot;
+import com.google.type.LatLng;
 
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,6 +51,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -75,10 +86,19 @@ public class Dashboard extends AppCompatActivity {
     RelativeLayout loadLayout;
     LinearLayout dataLayout;
 
+    //Search City
+    EditText cityname;
+    Button searchBtn;
+    Location location;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
+
+        //Search Items
+        cityname = findViewById(R.id.cityNameSearch);
+        searchBtn = findViewById(R.id.searchBtn);
 
         //Assign data and loading layout
         dataLayout = findViewById(R.id.DataLayout);
@@ -86,8 +106,7 @@ public class Dashboard extends AppCompatActivity {
 
 
         //Initially the loading view is visible
-        dataLayout.setVisibility(View.INVISIBLE);
-        loadLayout.setVisibility(View.VISIBLE);
+        startLoading();
 
         //Make a dummy URL to fetch API
         makeURL();
@@ -128,6 +147,9 @@ public class Dashboard extends AppCompatActivity {
         descList = new ArrayList<>();
     }
     public void loadJSON(String url, final boolean loadIntoDatabase){
+
+        startLoading();
+
         Log.i("Content","Loading Data from API");
         StringRequest request = new StringRequest(url, new Response.Listener<String>() {
             @Override
@@ -147,6 +169,7 @@ public class Dashboard extends AppCompatActivity {
     }
 
     private void loadData(String response,boolean loadIntoDatabase){
+        startLoading();
         try {
             JSONObject obj = new JSONObject(response);
             timeZone = obj.getString("timezone");
@@ -178,7 +201,7 @@ public class Dashboard extends AppCompatActivity {
             }
 
             if(loadIntoDatabase) queryDB();
-            else fetchFromDB();
+            else showData();
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -187,6 +210,7 @@ public class Dashboard extends AppCompatActivity {
     }
 
     public void queryDB(){
+        startLoading();
         Map<String,Object> map = new HashMap<>();
 
         map.put(KEY_LOCATION,timeZone);
@@ -214,6 +238,8 @@ public class Dashboard extends AppCompatActivity {
     }
 
     public void fetchFromDB(){
+
+        startLoading();
         docRef.get()
                 .addOnSuccessListener(new OnSuccessListener<DocumentSnapshot>() {
                     @Override
@@ -263,6 +289,8 @@ public class Dashboard extends AppCompatActivity {
     //Method to assign data (Will work for the search functionality also)
     @SuppressLint("SetTextI18n")
     private void showData(){
+
+        startLoading();
         Log.i("Content","Showing Data");
 
         //Set Today's data
@@ -284,8 +312,7 @@ public class Dashboard extends AppCompatActivity {
         forcastRV.setLayoutManager(new LinearLayoutManager(this));
         forcastRV.setAdapter(forcastAdapter);
 
-        dataLayout.setVisibility(View.VISIBLE);
-        loadLayout.setVisibility(View.INVISIBLE);
+        endLoading();
     }
 
     //Logout Method
@@ -305,5 +332,51 @@ public class Dashboard extends AppCompatActivity {
             list = new ArrayList<>((Collection<?>)obj);
         }
         return list;
+    }
+
+    public void searchNewCity(View v){
+        //Hide Keyboard
+        try {
+            InputMethodManager imm = (InputMethodManager)getSystemService(INPUT_METHOD_SERVICE);
+            imm.hideSoftInputFromWindow(getCurrentFocus().getWindowToken(), 0);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        String name = cityname.getText().toString().trim();
+        if(name.equals("")) return ;
+
+        //Using geocoding to find latitude and longitude from city name
+        Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
+        String result = null;
+        try {
+            List<Address> list = geocoder.getFromLocationName(name,1);
+            if (list != null && list.size() > 0) {
+                Address address = list.get(0);
+                // Assigning the new lat and longitude
+                lat = address.getLatitude();
+                lon = address.getLongitude();
+
+                //Make new url and then call the api
+                //Since loadJSON has false so this data wont be stored to database
+                makeURL();
+                loadJSON(URL,false);
+                Log.i("Content",lat + " "+lon);
+            }
+        } catch (IOException e) {
+           e.printStackTrace();
+        }
+    }
+
+    //Functions to show visual indications of loading
+    private void startLoading(){
+        //Loading Stage
+        dataLayout.setVisibility(View.INVISIBLE);
+        loadLayout.setVisibility(View.VISIBLE);
+    }
+
+    private void endLoading() {
+        dataLayout.setVisibility(View.VISIBLE);
+        loadLayout.setVisibility(View.INVISIBLE);
     }
 }
