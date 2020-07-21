@@ -7,7 +7,9 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import android.annotation.SuppressLint;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -30,6 +32,7 @@ import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.weatherapp.Adapters.ForcastAdapter;
+import com.example.weatherapp.Utils.RefreshCounter;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
@@ -104,6 +107,16 @@ public class Dashboard extends AppCompatActivity {
         dataLayout = findViewById(R.id.DataLayout);
         loadLayout = findViewById(R.id.loadLayout);
 
+        //Recycler View and Today's Data
+        forcastRV = findViewById(R.id.forcastRecyclerView);
+
+        locationTodayTV = findViewById(R.id.locationToday);
+        dateToday = findViewById(R.id.dateTodayText);
+        mainTodayTV = findViewById(R.id.mainTodayText);
+        descTodayTV = findViewById(R.id.descTodayText);
+        maxTodayTV = findViewById(R.id.maxTempToday);
+        minTodayTV = findViewById(R.id.minTempToday);
+
 
         //Initially the loading view is visible
         startLoading();
@@ -122,17 +135,9 @@ public class Dashboard extends AppCompatActivity {
 
         //Initialize the lists and load the data
         initList();
-        //loadJSON(URL,true); // True means load data into database else we will simply show the data
-        fetchFromDB();
-
-        forcastRV = findViewById(R.id.forcastRecyclerView);
-
-        locationTodayTV = findViewById(R.id.locationToday);
-        dateToday = findViewById(R.id.dateTodayText);
-        mainTodayTV = findViewById(R.id.mainTodayText);
-        descTodayTV = findViewById(R.id.descTodayText);
-        maxTodayTV = findViewById(R.id.maxTempToday);
-        minTodayTV = findViewById(R.id.minTempToday);
+        loadJSON(URL,true,false);
+        // True means load data into database else we will simply show the data
+        //The second boolean specified if its a search query
     }
 
     void makeURL(){
@@ -146,15 +151,41 @@ public class Dashboard extends AppCompatActivity {
         mainList = new ArrayList<>();
         descList = new ArrayList<>();
     }
-    public void loadJSON(String url, final boolean loadIntoDatabase){
+    public void loadJSON(String url, final boolean loadIntoDatabase, final boolean searchQuery){
 
         startLoading();
+
+        //If search query, dont check for data in SP
+        if(!searchQuery) {
+            //Check if data refresh is required or else take the data from Shared Preferences
+            RefreshCounter refreshCounter = new RefreshCounter();
+            if (refreshCounter.doRefresh(this)) {
+                Log.i("Content", "Refresh required");
+                refreshCounter.updateSharedPreference(this);
+            } else {
+                Log.i("Content", "Refresh not required");
+                String response = refreshCounter.loadData(this);
+
+                //Since its the same data as we have in database there is no point of updating the database again
+                Log.i("Content from SP", response);
+                loadData(response, false);
+                return;
+            }
+        }
 
         Log.i("Content","Loading Data from API");
         StringRequest request = new StringRequest(url, new Response.Listener<String>() {
             @Override
             public void onResponse(String response) {
-                Log.i("Content",response);
+                //Log.i("Content",response);
+
+                //Caching the data in shared preferences to be used later
+                //If searchQuery then skip this step
+                if(!searchQuery) {
+                    SharedPreferences sharedPreferences = getApplicationContext().getSharedPreferences("com.example.weatherapp", Context.MODE_PRIVATE);
+                    sharedPreferences.edit().putString("weatherData", response).apply();
+                }
+
                 loadData(response,loadIntoDatabase);
             }
         }, new Response.ErrorListener() {
@@ -200,8 +231,12 @@ public class Dashboard extends AppCompatActivity {
                 descList.add(description);
             }
 
-            if(loadIntoDatabase) queryDB();
-            else showData();
+            if(loadIntoDatabase) {
+                queryDB();
+            }
+            else {
+                showData();
+            }
 
         } catch (JSONException e) {
             e.printStackTrace();
@@ -289,17 +324,15 @@ public class Dashboard extends AppCompatActivity {
     //Method to assign data (Will work for the search functionality also)
     @SuppressLint("SetTextI18n")
     private void showData(){
-
         startLoading();
         Log.i("Content","Showing Data");
-
         //Set Today's data
-        locationTodayTV.setText(timeZone);
+        locationTodayTV.setText("Timezone : "+timeZone);
         dateToday.setText(dateList.get(0));
         mainTodayTV.setText(mainList.get(0));
         descTodayTV.setText(descList.get(0).toUpperCase());
-        maxTodayTV.setText("Max Temp: "+maxTempList.get(0)+  " \u2103" );
-        minTodayTV.setText("Min Temp: "+minTempList.get(0)+  " \u2103" );
+        maxTodayTV.setText("Max Temp: " + maxTempList.get(0) + " \u2103");
+        minTodayTV.setText("Min Temp: " + minTempList.get(0) + " \u2103");
 
         //Remove the first element since today's data has already been assigned
         dateList.remove(0);
@@ -313,6 +346,8 @@ public class Dashboard extends AppCompatActivity {
         forcastRV.setAdapter(forcastAdapter);
 
         endLoading();
+        //Re-enable search functionality
+        searchBtn.setEnabled(true);
     }
 
     //Logout Method
@@ -346,9 +381,11 @@ public class Dashboard extends AppCompatActivity {
         String name = cityname.getText().toString().trim();
         if(name.equals("")) return ;
 
-        //Using geocoding to find latitude and longitude from city name
+        //Disable further search
+        searchBtn.setEnabled(false);
+
+        //Using geo coding to find latitude and longitude from city name
         Geocoder geocoder = new Geocoder(getApplicationContext(), Locale.getDefault());
-        String result = null;
         try {
             List<Address> list = geocoder.getFromLocationName(name,1);
             if (list != null && list.size() > 0) {
@@ -360,11 +397,18 @@ public class Dashboard extends AppCompatActivity {
                 //Make new url and then call the api
                 //Since loadJSON has false so this data wont be stored to database
                 makeURL();
-                loadJSON(URL,false);
+                loadJSON(URL,false,true);
                 Log.i("Content",lat + " "+lon);
             }
+            else {
+                Toast.makeText(getApplicationContext(),"Invalid Location!",Toast.LENGTH_SHORT).show();
+                searchBtn.setEnabled(true);
+            }
         } catch (IOException e) {
+            Log.i("Content","Invalid Location!");
            e.printStackTrace();
+           Toast.makeText(getApplicationContext(),"Invalid Location!",Toast.LENGTH_SHORT).show();
+           searchBtn.setEnabled(true);
         }
     }
 
